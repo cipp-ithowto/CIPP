@@ -53,6 +53,8 @@ export const CippDataTable = (props) => {
     incorrectDataMessage = "Data not in correct format",
     onChange,
     filters,
+    maxHeightOffset = "380px",
+    defaultSorting = [],
   } = props;
   const [columnVisibility, setColumnVisibility] = useState(initialColumnVisibility);
   const [configuredSimpleColumns, setConfiguredSimpleColumns] = useState(simpleColumns);
@@ -62,6 +64,7 @@ export const CippDataTable = (props) => {
   const [offCanvasData, setOffCanvasData] = useState({});
   const [actionData, setActionData] = useState({ data: {}, action: {}, ready: false });
   const [graphFilterData, setGraphFilterData] = useState({});
+  const [sorting, setSorting] = useState([]);
   const waitingBool = api?.url ? true : false;
 
   const settings = useSettings();
@@ -148,6 +151,9 @@ export const CippDataTable = (props) => {
         newVisibility[col.accessorKey] = providedColumnKeys.has(col.id);
       });
     }
+    if (defaultSorting?.length > 0) {
+      setSorting(defaultSorting);
+    }
     setUsedColumns(finalColumns);
     setColumnVisibility(newVisibility);
   }, [columns.length, usedData.length, queryKey]);
@@ -156,7 +162,15 @@ export const CippDataTable = (props) => {
 
   // Apply the modeInfo directly
   const [modeInfo] = useState(
-    utilTableMode(columnVisibility, simple, actions, configuredSimpleColumns, offCanvas, onChange)
+    utilTableMode(
+      columnVisibility,
+      simple,
+      actions,
+      configuredSimpleColumns,
+      offCanvas,
+      onChange,
+      maxHeightOffset
+    )
   );
   //create memoized version of usedColumns, and usedData
   const memoizedColumns = useMemo(() => usedColumns, [usedColumns]);
@@ -178,11 +192,15 @@ export const CippDataTable = (props) => {
     data: memoizedData,
     state: {
       columnVisibility,
+      sorting,
       showSkeletons: getRequestData.isFetchingNextPage
         ? false
         : getRequestData.isFetching
         ? getRequestData.isFetching
         : isFetching,
+    },
+    onSortingChange: (newSorting) => {
+      setSorting(newSorting ?? []);
     },
     renderEmptyRowsFallback: ({ table }) =>
       getRequestData.data?.pages?.[0].Metadata?.QueueMessage ? (
@@ -297,7 +315,10 @@ export const CippDataTable = (props) => {
   }, [table.getSelectedRowModel().rows]);
 
   useEffect(() => {
-    setConfiguredSimpleColumns(simpleColumns);
+    //check if the simplecolumns are an array,
+    if (Array.isArray(simpleColumns) && simpleColumns.length > 0) {
+      setConfiguredSimpleColumns(simpleColumns);
+    }
   }, [simpleColumns]);
 
   return (
@@ -322,7 +343,7 @@ export const CippDataTable = (props) => {
         </Scrollbar>
       ) : (
         // Render the table inside a Card
-        <Card style={{ width: "100%" }}>
+        <Card style={{ width: "100%" }} {...props.cardProps}>
           {cardButton || !hideTitle ? (
             <>
               <CardHeader action={cardButton} title={hideTitle ? "" : title} />
